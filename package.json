@@ -1,0 +1,22 @@
+{
+  "name": "api-tarefas-vercel",
+  "version": "1.0.0",
+  "description": "API RESTful para gerenciamento de tarefas.",
+  "main": "api/app.js",
+  "scripts": {
+    "start": "node api/app.js",
+    "dev": "node --watch api/app.js"
+  },
+  "keywords": [
+    "api",
+    "express",
+    "vercel",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "uuid": "^9.0.1"
+  }
+}
