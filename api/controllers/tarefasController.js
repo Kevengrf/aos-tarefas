@@ -1,97 +1,68 @@
-const Tarefa = require('../models/Tarefa');
+const { Tarefa } = require('../models');
 
-// Array para armazenar as tarefas em memória, atuando como nosso "banco de dados".
-let tarefas = [];
-
-/**
- * Cria uma nova tarefa e a adiciona à lista.
- */
-exports.criarTarefa = (req, res) => {
-  const { descricao, concluida } = req.body;
-
-  // Validação simples: verifica se a descrição foi fornecida.
-  if (!descricao) {
-    return res.status(400).json({ message: 'A descrição é obrigatória.' });
+exports.criarTarefa = async (req, res) => {
+  try {
+    const { descricao, concluida } = req.body;
+    // We get UserId from the auth middleware
+    const novaTarefa = await Tarefa.create({ descricao, concluida, UserId: req.userId });
+    res.status(201).json(novaTarefa);
+  } catch (error) {
+    res.status(400).json({ message: "Erro ao criar tarefa", error: error.message });
   }
-
-  // Cria uma nova instância da classe Tarefa.
-  const novaTarefa = new Tarefa(descricao, concluida);
-  
-  // Adiciona a nova tarefa ao array.
-  tarefas.push(novaTarefa);
-  
-  // Retorna a tarefa recém-criada com o status 201 (Created).
-  res.status(201).json(novaTarefa);
 };
 
-/**
- * Lista todas as tarefas existentes.
- */
-exports.listarTarefas = (req, res) => {
-  // Retorna a lista completa de tarefas.
-  res.status(200).json(tarefas);
+exports.listarTarefas = async (req, res) => {
+  try {
+    const tarefas = await Tarefa.findAll({ where: { UserId: req.userId } });
+    res.status(200).json(tarefas);
+  } catch (error) {
+    res.status(400).json({ message: "Erro ao listar tarefas", error: error.message });
+  }
 };
 
-/**
- * Busca e retorna uma tarefa específica pelo seu objectId.
- */
-exports.obterTarefa = (req, res) => {
-  const { objectId } = req.params;
-  
-  // Procura a tarefa no array pelo objectId.
-  const tarefa = tarefas.find(t => t.objectId === objectId);
-
-  // Se a tarefa não for encontrada, retorna 404 (Not Found).
-  if (!tarefa) {
-    return res.status(404).json({ message: 'Tarefa não encontrada.' });
+exports.obterTarefa = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tarefa = await Tarefa.findOne({ where: { id, UserId: req.userId } });
+    if (!tarefa) {
+      return res.status(404).json({ message: 'Tarefa não encontrada.' });
+    }
+    res.status(200).json(tarefa);
+  } catch (error) {
+    res.status(400).json({ message: "Erro ao obter tarefa", error: error.message });
   }
-
-  // Retorna a tarefa encontrada.
-  res.status(200).json(tarefa);
 };
 
-/**
- * Atualiza uma tarefa existente.
- */
-exports.atualizarTarefa = (req, res) => {
-  const { objectId } = req.params;
-  const { descricao, concluida } = req.body;
-
-  // Encontra o índice da tarefa a ser atualizada.
-  const tarefaIndex = tarefas.findIndex(t => t.objectId === objectId);
-
-  // Se não encontrar, retorna 404.
-  if (tarefaIndex === -1) {
-    return res.status(404).json({ message: 'Tarefa não encontrada.' });
+exports.atualizarTarefa = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descricao, concluida } = req.body;
+    const [updated] = await Tarefa.update({ descricao, concluida }, {
+      where: { id, UserId: req.userId }
+    });
+    if (updated) {
+      const tarefaAtualizada = await Tarefa.findOne({ where: { id, UserId: req.userId } });
+      res.status(200).json(tarefaAtualizada);
+    } else {
+      res.status(404).json({ message: 'Tarefa não encontrada.' });
+    }
+  } catch (error) {
+    res.status(400).json({ message: "Erro ao atualizar tarefa", error: error.message });
   }
-
-  // Atualiza os campos da tarefa. Se um campo não for fornecido no corpo da requisição,
-  // mantém o valor antigo.
-  tarefas[tarefaIndex].descricao = descricao || tarefas[tarefaIndex].descricao;
-  // Verifica explicitamente se `concluida` foi passado no corpo, pois pode ser `false`.
-  tarefas[tarefaIndex].concluida = typeof concluida === 'boolean' ? concluida : tarefas[tarefaIndex].concluida;
-
-  // Retorna a tarefa atualizada.
-  res.status(200).json(tarefas[tarefaIndex]);
 };
 
-/**
- * Remove uma tarefa da lista.
- */
-exports.removerTarefa = (req, res) => {
-  const { objectId } = req.params;
-  
-  // Filtra o array, mantendo apenas as tarefas cujo objectId não corresponde ao fornecido.
-  const novasTarefas = tarefas.filter(t => t.objectId !== objectId);
-
-  // Se o tamanho do array não mudou, a tarefa não foi encontrada.
-  if (tarefas.length === novasTarefas.length) {
-    return res.status(404).json({ message: 'Tarefa não encontrada.' });
+exports.removerTarefa = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Tarefa.destroy({
+      where: { id, UserId: req.userId }
+    });
+    if (deleted) {
+      res.status(204).send();
+    } else {
+      res.status(404).json({ message: 'Tarefa não encontrada.' });
+    }
+  } catch (error) {
+    res.status(400).json({ message: "Erro ao remover tarefa", error: error.message });
   }
-
-  // Atualiza o array de tarefas.
-  tarefas = novasTarefas;
-  
-  // Retorna uma resposta de sucesso sem conteúdo (204 No Content).
-  res.status(204).send();
 };
